@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2019 Fris
+// Copyright (c) 2019 Ilyes Cherfaoui
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,87 +23,17 @@
 package main
 
 import (
-	"bufio"
+	"github.com/OGFris/SluxDB"
 	"github.com/OGFris/SluxDB/utils"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"log"
 	"os"
 )
 
 func main() {
 	log.SetPrefix("[SluxDB] ")
-
-	if _, err := os.Stat("./sluxdb_config.json"); err == os.ErrNotExist {
-		// File doesn't exist so it'll start a new setup.
-		scanner := bufio.NewScanner(os.Stdin)
-		log.Println("Couldn't find a config file, creating a new one, please follow the setup instructions.")
-		log.Print("Please set the username you want to use: ")
-		scanner.Scan()
-		username := scanner.Text()
-		if len(username) == 0 {
-			log.Fatalln("Username can't be empty, set it to default username.")
-			username = "root"
-		} else {
-			log.Println() // to jump to the next line.
-		}
-
-		log.Print("Please set the password you want to use: ")
-		scanner.Scan()
-		password := scanner.Text()
-		if len(password) == 0 {
-			password = utils.GenerateToken()
-			log.Fatalln("Password can't be empty, generated random passwword (Save it somewhere):", password)
-		} else {
-			log.Println()
-		}
-
-		hash, err := utils.Encrypt(password)
-		if err != nil {
-			panic(err)
-		}
-
-		f, err := os.Create("./sluxdb_config.json")
-		if err != nil {
-			panic(err)
-		}
-
-		bytes, err := yaml.Marshal(struct {
-			Username string
-			Password string
-		}{
-			Username: username,
-			Password: hash,
-		})
-		if err != nil {
-			panic(err)
-		}
-
-		_, err = f.Write(bytes)
-		if err != nil {
-			panic(err)
-		}
-
-		err = f.Close()
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		bytes, err := ioutil.ReadFile("./sluxdb_config.json")
-		if err != nil {
-			panic(err)
-		}
-
-		out := struct {
-			Username string
-			Password string
-		}{}
-
-		err = yaml.Unmarshal(bytes, out)
-		if err != nil {
-			panic(err)
-		}
-
-		// TODO: Start the server with the out config.
+	if os.Getenv("PORT") == "" {
+		utils.PanicErr(os.Setenv("PORT", "6060"))
 	}
+
+	SluxDB.Start(os.Getenv("PORT"))
 }

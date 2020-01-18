@@ -20,50 +20,66 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package utils
+package SluxDB
 
 import (
-	"fmt"
-	jsoniter "github.com/json-iterator/go"
-	"math/rand"
+	"github.com/OGFris/SluxDB/routes"
+	"github.com/OGFris/SluxDB/storage"
+	"github.com/OGFris/SluxDB/utils"
+	"github.com/gorilla/mux"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"log"
 	"net/http"
-	"testing"
-	"time"
+	"os"
 )
 
-type FormError struct {
-	StatusCode int    `json:"status_code"`
-	Message    string `json:"message"`
-}
+var (
+	Password string
+	Storage  *storage.Storage
+)
 
-func WriteErr(w http.ResponseWriter, err string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	PanicErr(jsoniter.NewEncoder(w).Encode(FormError{Message: err, StatusCode: statusCode}))
-}
+func Start(port string) {
+	if _, err := os.Stat("./sluxdb_config.yaml"); err == os.ErrNotExist {
+		Password = utils.GenerateToken()
+		f, err := os.Create("./sluxdb_config.yaml")
+		utils.PanicErr(err)
 
-func WriteJson(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	PanicErr(jsoniter.NewEncoder(w).Encode(data))
-}
+		bytes, err := yaml.Marshal(struct {
+			Password string
+		}{
+			Password: Password,
+		})
+		utils.PanicErr(err)
 
-func GenerateToken() string {
-	rand.Seed(time.Now().UnixNano())
-	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	tokenBytes := make([]rune, 16)
-	for i := range tokenBytes {
-		tokenBytes[i] = letters[rand.Intn(len(letters))]
+		_, err = f.Write(bytes)
+		utils.PanicErr(err)
+
+		err = f.Close()
+		utils.PanicErr(err)
+	} else {
+		bytes, err := ioutil.ReadFile("./sluxdb_config.yaml")
+		utils.PanicErr(err)
+
+		out := struct {
+			Password string
+		}{}
+
+		err = yaml.Unmarshal(bytes, out)
+		utils.PanicErr(err)
+
+		Password = out.Password
 	}
-	return string(tokenBytes)
-}
 
-func AssertEq(t *testing.T, a interface{}, b interface{}) {
-	if a != b {
-		t.Fatal(fmt.Sprintf("%v != %v", a, b))
-	}
-}
+	var err error
+	Storage, err = storage.NewStorage("./data.db")
+	utils.PanicErr(err)
 
-func PanicErr(err error) {
-	if err != nil {
-		panic(err)
-	}
+	router := mux.NewRouter()
+	router.Methods("POST")
+
+	router.HandleFunc("/query", routes.Query)
+	router.HandleFunc("/query/batch", routes.QueryBatch)
+
+	log.Fatalln(http.ListenAndServe(":"+port, router))
 }

@@ -20,50 +20,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package utils
+package routes
 
 import (
-	"fmt"
+	"github.com/OGFris/SluxDB"
+	"github.com/OGFris/SluxDB/utils"
 	jsoniter "github.com/json-iterator/go"
-	"math/rand"
 	"net/http"
-	"testing"
-	"time"
 )
 
-type FormError struct {
-	StatusCode int    `json:"status_code"`
-	Message    string `json:"message"`
-}
-
-func WriteErr(w http.ResponseWriter, err string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	PanicErr(jsoniter.NewEncoder(w).Encode(FormError{Message: err, StatusCode: statusCode}))
-}
-
-func WriteJson(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	PanicErr(jsoniter.NewEncoder(w).Encode(data))
-}
-
-func GenerateToken() string {
-	rand.Seed(time.Now().UnixNano())
-	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	tokenBytes := make([]rune, 16)
-	for i := range tokenBytes {
-		tokenBytes[i] = letters[rand.Intn(len(letters))]
+func Query(w http.ResponseWriter, r *http.Request) {
+	password := r.PostFormValue("password")
+	if SluxDB.Password != password {
+		utils.WriteErr(w, "Wrong password", http.StatusUnauthorized)
 	}
-	return string(tokenBytes)
-}
-
-func AssertEq(t *testing.T, a interface{}, b interface{}) {
-	if a != b {
-		t.Fatal(fmt.Sprintf("%v != %v", a, b))
+	query := r.PostFormValue("query")
+	var q struct {
+		Bucket string `json:"bucket"`
+		Key    string `json:"key"`
 	}
-}
 
-func PanicErr(err error) {
-	if err != nil {
-		panic(err)
+	utils.PanicErr(jsoniter.UnmarshalFromString(query, &q))
+
+	if v, exist := SluxDB.Storage.Local[q.Bucket][q.Key]; exist {
+		utils.WriteJson(w, struct {
+			Bucket string `json:"bucket"`
+			Key    string `json:"key"`
+			Value  int    `json:"value"`
+		}{q.Bucket, q.Key, v})
+	} else {
+		utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
 	}
 }
