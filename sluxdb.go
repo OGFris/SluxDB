@@ -76,10 +76,11 @@ func Start(port string) {
 	utils.PanicErr(err)
 
 	router := mux.NewRouter()
-	router.Methods("POST")
 
-	router.HandleFunc("/query", routes.Query)
-	router.HandleFunc("/query/batch", routes.QueryBatch)
+	router.HandleFunc("/query", routes.Query).Methods("POST")
+	router.HandleFunc("/query/put", routes.QueryPut).Methods("POST")
+	router.HandleFunc("/query/batch", routes.QueryBatch).Methods("POST")
+	router.HandleFunc("/bucket", routes.Bucket).Methods("POST")
 
 	log.Fatalln(http.ListenAndServe(":"+port, router))
 }

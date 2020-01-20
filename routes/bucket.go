@@ -21,3 +21,43 @@
 // SOFTWARE.
 
 package routes
+
+import (
+	"github.com/OGFris/SluxDB"
+	"github.com/OGFris/SluxDB/utils"
+	"net/http"
+	"strings"
+)
+
+func Bucket(w http.ResponseWriter, r *http.Request) {
+	password := r.PostFormValue("password")
+	if SluxDB.Password != password {
+		utils.WriteErr(w, "Wrong password", http.StatusUnauthorized)
+	}
+	bucket := r.PostFormValue("bucket")
+	operation := r.PostFormValue("operation")
+
+	switch strings.ToLower(operation) {
+	case "create":
+		err := SluxDB.Storage.CreateBucket(bucket)
+		if err != nil {
+			utils.WriteErr(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		break
+
+	case "delete":
+		err := SluxDB.Storage.DeleteBucket(bucket)
+		if err != nil {
+			utils.WriteErr(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		break
+
+	default:
+		utils.WriteErr(w, "Invalid operation!", http.StatusBadRequest)
+		break
+	}
+}

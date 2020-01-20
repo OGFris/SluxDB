@@ -23,6 +23,7 @@
 package storage
 
 import (
+	"fmt"
 	"github.com/OGFris/SluxDB/utils"
 	bolt "go.etcd.io/bbolt"
 	"strconv"
@@ -61,26 +62,22 @@ func (s *Storage) DeleteBucket(bucket string) error {
 	})
 }
 
-func (s *Storage) PutKey(bucket, key string, value string) (err error) {
-	err = s.Engine.Update(func(tx *bolt.Tx) error {
+func (s *Storage) PutKey(bucket, key string, value int) error {
+	return s.Engine.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
-		err := b.Put([]byte(key), []byte(value))
+		err := b.Put([]byte(key), []byte(fmt.Sprint(value)))
 
 		return err
 	})
-
-	return
 }
 
-func (s *Storage) DeleteKey(bucket, key string) (err error) {
-	err = s.Engine.Update(func(tx *bolt.Tx) error {
+func (s *Storage) DeleteKey(bucket, key string) error {
+	return s.Engine.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		err := b.Delete([]byte(key))
 
 		return err
 	})
-
-	return
 }
 
 func (s *Storage) parseAll() error {

@@ -39,16 +39,53 @@ func Query(w http.ResponseWriter, r *http.Request) {
 		Bucket string `json:"bucket"`
 		Key    string `json:"key"`
 	}
-
 	utils.PanicErr(jsoniter.UnmarshalFromString(query, &q))
+	if q.Bucket == "" {
+		utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
+
+		return
+	}
+
+	if q.Key == "" {
+		// returns all
+		if v, exist := SluxDB.Storage.Local[q.Bucket]; exist {
+			utils.WriteJson(w, v)
+		} else {
+			utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
+
+			return
+		}
+	}
 
 	if v, exist := SluxDB.Storage.Local[q.Bucket][q.Key]; exist {
-		utils.WriteJson(w, struct {
-			Bucket string `json:"bucket"`
-			Key    string `json:"key"`
-			Value  int    `json:"value"`
-		}{q.Bucket, q.Key, v})
+		utils.WriteJson(w, v)
 	} else {
 		utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
+	}
+}
+
+func QueryPut(w http.ResponseWriter, r *http.Request) {
+	password := r.PostFormValue("password")
+	if SluxDB.Password != password {
+		utils.WriteErr(w, "Wrong password", http.StatusUnauthorized)
+	}
+	query := r.PostFormValue("query")
+	var q struct {
+		Bucket string `json:"bucket"`
+		Key    string `json:"key"`
+		Value  int    `json:"value"`
+	}
+	utils.PanicErr(jsoniter.UnmarshalFromString(query, &q))
+	if q.Key == "" || q.Bucket == "" {
+		utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
+
+		return
+	}
+
+	err := SluxDB.Storage.PutKey(q.Bucket, q.Key, q.Value)
+	if err != nil {
+		utils.WriteErr(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
 }
