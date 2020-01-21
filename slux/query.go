@@ -20,10 +20,47 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package routes
+package slux
 
-import "net/http"
+import (
+	"github.com/OGFris/SluxDB/utils"
+	jsoniter "github.com/json-iterator/go"
+	"net/http"
+)
 
-func QueryBatch(w http.ResponseWriter, r *http.Request) {
-	// TODO
+func Query(w http.ResponseWriter, r *http.Request) {
+	password := r.PostFormValue("password")
+	if Password != password {
+		utils.WriteErr(w, "Wrong password", http.StatusUnauthorized)
+
+		return
+	}
+	query := r.PostFormValue("query")
+	var q struct {
+		Bucket string `json:"bucket"`
+		Key    string `json:"key"`
+	}
+	utils.PanicErr(jsoniter.UnmarshalFromString(query, &q))
+	if q.Bucket == "" {
+		utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
+
+		return
+	}
+
+	if q.Key == "" {
+		// returns all
+		if v, exist := Storage.Local[q.Bucket]; exist {
+			utils.WriteJson(w, v)
+		} else {
+			utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
+
+			return
+		}
+	}
+
+	if v, exist := Storage.Local[q.Bucket][q.Key]; exist {
+		utils.WriteJson(w, v)
+	} else {
+		utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
+	}
 }

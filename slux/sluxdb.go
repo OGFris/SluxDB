@@ -20,44 +20,65 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package routes
+package slux
 
 import (
-	"github.com/OGFris/SluxDB"
+	"github.com/OGFris/SluxDB/storage"
 	"github.com/OGFris/SluxDB/utils"
+	"github.com/gorilla/mux"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"log"
 	"net/http"
-	"strings"
+	"os"
 )
 
-func Bucket(w http.ResponseWriter, r *http.Request) {
-	password := r.PostFormValue("password")
-	if SluxDB.Password != password {
-		utils.WriteErr(w, "Wrong password", http.StatusUnauthorized)
+var (
+	Password string
+	Storage  *storage.Storage
+)
+
+func Start(port string) {
+	if _, err := os.Stat("./sluxdb.yaml"); err != nil {
+		Password = utils.GenerateToken()
+		f, err := os.Create("./sluxdb.yaml")
+		utils.PanicErr(err)
+
+		bytes, err := yaml.Marshal(struct {
+			Password string
+		}{
+			Password: Password,
+		})
+		utils.PanicErr(err)
+
+		_, err = f.Write(bytes)
+		utils.PanicErr(err)
+
+		err = f.Close()
+		utils.PanicErr(err)
+	} else {
+		bytes, err := ioutil.ReadFile("./sluxdb.yaml")
+		utils.PanicErr(err)
+
+		out := struct {
+			Password string
+		}{}
+
+		err = yaml.Unmarshal(bytes, out)
+		utils.PanicErr(err)
+
+		Password = out.Password
 	}
-	bucket := r.PostFormValue("bucket")
-	operation := r.PostFormValue("operation")
 
-	switch strings.ToLower(operation) {
-	case "create":
-		err := SluxDB.Storage.CreateBucket(bucket)
-		if err != nil {
-			utils.WriteErr(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
-		break
+	var err error
+	Storage, err = storage.NewStorage("./data.db")
+	utils.PanicErr(err)
 
-	case "delete":
-		err := SluxDB.Storage.DeleteBucket(bucket)
-		if err != nil {
-			utils.WriteErr(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
-		break
+	router := mux.NewRouter()
 
-	default:
-		utils.WriteErr(w, "Invalid operation!", http.StatusBadRequest)
-		break
-	}
+	router.HandleFunc("/query", Query).Methods("POST")
+	router.HandleFunc("/mutation", Mutation).Methods("POST")
+	router.HandleFunc("/bucket", Bucket).Methods("POST")
+
+	log.Fatalln(http.ListenAndServe(":"+port, router))
 }

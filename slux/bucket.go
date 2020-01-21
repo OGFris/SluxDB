@@ -20,18 +20,45 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package main
+package slux
 
 import (
-	"github.com/OGFris/SluxDB/slux"
 	"github.com/OGFris/SluxDB/utils"
-	"os"
+	"net/http"
+	"strings"
 )
 
-func main() {
-	if os.Getenv("PORT") == "" {
-		utils.PanicErr(os.Setenv("PORT", "6060"))
-	}
+func Bucket(w http.ResponseWriter, r *http.Request) {
+	password := r.PostFormValue("password")
+	if Password != password {
+		utils.WriteErr(w, "Wrong password", http.StatusUnauthorized)
 
-	slux.Start(os.Getenv("PORT"))
+		return
+	}
+	bucket := r.PostFormValue("bucket")
+	operation := r.PostFormValue("operation")
+
+	switch strings.ToLower(operation) {
+	case "create":
+		err := Storage.CreateBucket(bucket)
+		if err != nil {
+			utils.WriteErr(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		break
+
+	case "delete":
+		err := Storage.DeleteBucket(bucket)
+		if err != nil {
+			utils.WriteErr(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		break
+
+	default:
+		utils.WriteErr(w, "Invalid operation!", http.StatusBadRequest)
+		break
+	}
 }
