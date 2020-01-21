@@ -24,7 +24,6 @@ package slux
 
 import (
 	"github.com/OGFris/SluxDB/utils"
-	jsoniter "github.com/json-iterator/go"
 	"net/http"
 )
 
@@ -35,21 +34,17 @@ func Query(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	query := r.PostFormValue("query")
-	var q struct {
-		Bucket string `json:"bucket"`
-		Key    string `json:"key"`
-	}
-	utils.PanicErr(jsoniter.UnmarshalFromString(query, &q))
-	if q.Bucket == "" {
+	bucket := r.PostFormValue("bucket")
+	key := r.PostFormValue("key")
+	if bucket == "" {
 		utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
 
 		return
 	}
 
-	if q.Key == "" {
+	if key == "" {
 		// returns all
-		if v, exist := Storage.Local[q.Bucket]; exist {
+		if v, exist := Storage.Local[bucket]; exist {
 			utils.WriteJson(w, v)
 		} else {
 			utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
@@ -58,7 +53,7 @@ func Query(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if v, exist := Storage.Local[q.Bucket][q.Key]; exist {
+	if v, exist := Storage.Local[bucket][key]; exist {
 		utils.WriteJson(w, v)
 	} else {
 		utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)

@@ -23,6 +23,7 @@
 package slux
 
 import (
+	"fmt"
 	"github.com/OGFris/SluxDB/storage"
 	"github.com/OGFris/SluxDB/utils"
 	"github.com/gorilla/mux"
@@ -31,12 +32,21 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 var (
 	Password string
 	Storage  *storage.Storage
 )
+
+func BenchmarkReq(f func(http.ResponseWriter, *http.Request), name string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s := time.Now()
+		f(w, r)
+		fmt.Println("Function", name, "took", float64(time.Now().Nanosecond()-s.Nanosecond())/1000000, "ms to complete")
+	}
+}
 
 func Start(port string) {
 	if _, err := os.Stat("./sluxdb.yaml"); err != nil {
@@ -64,7 +74,7 @@ func Start(port string) {
 			Password string
 		}{}
 
-		err = yaml.Unmarshal(bytes, out)
+		err = yaml.Unmarshal(bytes, &out)
 		utils.PanicErr(err)
 
 		Password = out.Password
@@ -76,9 +86,15 @@ func Start(port string) {
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/query", Query).Methods("POST")
-	router.HandleFunc("/mutation", Mutation).Methods("POST")
-	router.HandleFunc("/bucket", Bucket).Methods("POST")
+	if os.Getenv("LOGS") == "true" {
+		router.HandleFunc("/query", BenchmarkReq(Query, "query")).Methods("POST")
+		router.HandleFunc("/mutation", BenchmarkReq(Mutation, "mutation")).Methods("POST")
+		router.HandleFunc("/bucket", BenchmarkReq(Bucket, "bucket")).Methods("POST")
+	} else {
+		router.HandleFunc("/query", Query).Methods("POST")
+		router.HandleFunc("/mutation", Mutation).Methods("POST")
+		router.HandleFunc("/bucket", Bucket).Methods("POST")
+	}
 
 	log.Fatalln(http.ListenAndServe(":"+port, router))
 }
