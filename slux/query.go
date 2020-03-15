@@ -23,6 +23,7 @@
 package slux
 
 import (
+	"fmt"
 	"github.com/OGFris/SluxDB/utils"
 	"net/http"
 )
@@ -54,7 +55,8 @@ func Query(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if v, exist := Storage.Local[bucket][key]; exist {
-		utils.WriteJson(w, v)
+		_, err := w.Write([]byte(fmt.Sprint(v)))
+		utils.PanicErr(err)
 	} else {
 		utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
 	}

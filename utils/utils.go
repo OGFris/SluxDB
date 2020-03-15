@@ -38,11 +38,13 @@ type FormError struct {
 
 func WriteErr(w http.ResponseWriter, err string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
 	PanicErr(jsoniter.NewEncoder(w).Encode(FormError{Message: err, StatusCode: statusCode}))
 }
 
 func WriteJson(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	PanicErr(jsoniter.NewEncoder(w).Encode(data))
 }
 
