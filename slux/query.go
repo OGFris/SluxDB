@@ -54,10 +54,14 @@ func Query(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if v, exist := Storage.Local[bucket][key]; exist {
-		_, err := w.Write([]byte(fmt.Sprint(v)))
-		utils.PanicErr(err)
+	if _, exist := Storage.Local[bucket]; exist {
+		if v, exist := Storage.Local[bucket][key]; exist {
+			_, err := w.Write([]byte(fmt.Sprint(v)))
+			utils.PanicErr(err)
+		} else {
+			utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
+		}
 	} else {
-		utils.WriteErr(w, "Couldn't be found", http.StatusNotFound)
+		utils.WriteErr(w, "Bucket couldn't be found", http.StatusNotFound)
 	}
 }

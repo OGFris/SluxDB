@@ -49,7 +49,7 @@ func NewStorage(path string) (*Storage, error) {
 func (s *Storage) CreateBucket(bucket string) error {
 	return s.Engine.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucket([]byte(bucket))
-		if err != nil {
+		if err == nil {
 			s.Local[bucket] = make(map[string]int)
 		}
 
@@ -60,7 +60,7 @@ func (s *Storage) CreateBucket(bucket string) error {
 func (s *Storage) DeleteBucket(bucket string) error {
 	return s.Engine.Update(func(tx *bolt.Tx) error {
 		err := tx.DeleteBucket([]byte(bucket))
-		if err != nil {
+		if err == nil {
 			delete(s.Local, bucket)
 		}
 
@@ -72,7 +72,7 @@ func (s *Storage) PutKey(bucket, key string, value int) error {
 	return s.Engine.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		err := b.Put([]byte(key), []byte(fmt.Sprint(value)))
-		if err != nil {
+		if err == nil {
 			s.Local[bucket][key] = value
 		}
 
@@ -84,7 +84,7 @@ func (s *Storage) DeleteKey(bucket, key string) error {
 	return s.Engine.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		err := b.Delete([]byte(key))
-		if err != nil {
+		if err == nil {
 			delete(s.Local[bucket], key)
 		}
 
